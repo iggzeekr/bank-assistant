@@ -2,7 +2,7 @@
 
 A local retail-banking support assistant. It answers from bank policy notes, then calls one banking tool when the customer asks for a transfer or a balance. Sample customers and transfers are fictional and stay on this machine.
 
-What a CV can truthfully say after you run it:
+What it does:
 
 - The prompt keeps the customer segment and the last six turns, so a follow-up such as "peki ücreti ne kadar" stays on the EFT question.
 - EFT, card, and privacy questions are answered from `knowledge/`. Search is TF-IDF over those files. The model sees the matching note, not the whole folder.
@@ -33,7 +33,7 @@ python measure.py
 python main.py
 ```
 
-`--dry` prints the chosen path without calling a model. `measure.py` asks six banking questions in one conversation and prints latency and token counts. Use those measured numbers in a CV bullet. Empty input exits. `/reset` clears the conversation.
+`--dry` prints the chosen path without calling a model. `measure.py` asks six banking questions in one conversation and prints latency and token counts. Empty input exits. `/reset` clears the conversation.
 
 ## Paths
 
