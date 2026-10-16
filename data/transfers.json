@@ -1,0 +1,18 @@
+[
+  {
+    "id": "T2048",
+    "type": "EFT",
+    "amount_tl": 2500,
+    "status": "gerçekleşti",
+    "date": "2026-10-16",
+    "recipient_account_masked": "TR** **** **** 2048"
+  },
+  {
+    "id": "T2049",
+    "type": "havale",
+    "amount_tl": 400,
+    "status": "beklemede",
+    "date": "2026-10-16",
+    "recipient_account_masked": "TR** **** **** 1190"
+  }
+]
