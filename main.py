@@ -7,7 +7,7 @@ from assistant.llm import from_env
 from assistant.memory import Memory
 from assistant.pipeline import Assistant
 from assistant.retrieve import Index
-from assistant.tools import load_accounts, load_transfers
+from assistant.tools import load_accounts, load_payees, load_transfers
 
 ROOT = Path(__file__).resolve().parent
 
@@ -29,11 +29,13 @@ def build(live: bool) -> Assistant:
     index = Index.from_dir(ROOT / "knowledge")
     transfers = load_transfers(ROOT / "data" / "transfers.json")
     accounts = load_accounts(ROOT / "data" / "accounts.json")
+    payees = load_payees(ROOT / "data" / "payees.json")
     llm = from_env() if live else None
     return Assistant(
         index=index,
         transfers=transfers,
         accounts=accounts,
+        payees=payees,
         memory=Memory(profile),
         llm=llm,
         large_model=os.environ.get("LLM_MODEL", "gpt-4o-mini"),
@@ -63,7 +65,7 @@ def chat(live: bool) -> None:
         if not message:
             return
         if message == "/reset":
-            assistant.memory.reset()
+            assistant.reset()
             print("Konuşma silindi.\n")
             continue
         print_answer(assistant.ask(message, live=live))

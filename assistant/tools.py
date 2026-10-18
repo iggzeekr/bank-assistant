@@ -41,6 +41,61 @@ def lookup_transfer(transfers: dict[str, dict], transfer_id: str) -> dict:
     }
 
 
+DAILY_EFT_LIMIT_TL = 100_000
+
+
+def load_payees(path: Path) -> dict[str, dict]:
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    return {row["id"].upper(): row for row in rows}
+
+
+def prepare_eft(accounts: dict, customer_id: str, payees: dict, amount: int, payee_id: str) -> dict:
+    balance = lookup_balance(accounts, customer_id)
+    payee = payees.get(payee_id.upper())
+    fee = 15 if amount < 5000 else 0
+    reasons = []
+    if payee is None:
+        reasons.append("kayıtlı alıcı yok")
+    if amount > DAILY_EFT_LIMIT_TL:
+        reasons.append("günlük limit aşılıyor")
+    available = balance.get("available_tl")
+    if available is not None and amount + fee > available:
+        reasons.append("bakiye yetersiz")
+    return {
+        "action": "prepare_eft",
+        "amount_tl": amount,
+        "fee_tl": fee,
+        "payee_id": payee_id.upper(),
+        "payee_label": None if payee is None else payee["label"],
+        "account_masked": None if payee is None else payee["account_masked"],
+        "available_tl": available,
+        "daily_limit_tl": DAILY_EFT_LIMIT_TL,
+        "allowed": not reasons,
+        "reasons": reasons,
+    }
+
+
+def submit_eft(transfers: dict[str, dict], prepared: dict) -> dict:
+    number = 2048
+    for transfer_id in transfers:
+        suffix = int(transfer_id[1:])
+        if suffix >= number:
+            number = suffix + 1
+    transfer_id = f"T{number}"
+    row = {
+        "id": transfer_id,
+        "type": "EFT",
+        "amount_tl": prepared["amount_tl"],
+        "fee_tl": prepared["fee_tl"],
+        "status": "onay bekliyor",
+        "date": "2026-10-18",
+        "recipient_account_masked": prepared["account_masked"],
+        "found": True,
+    }
+    transfers[transfer_id] = row
+    return row
+
+
 def lookup_balance(accounts: dict[str, dict], customer_id: str) -> dict:
     row = accounts.get(customer_id)
     if row is None:

@@ -11,6 +11,9 @@ QUESTIONS = [
     "kartımı kaybettim ne yapmalıyım",
     "T2048 transferim gerçekleşti mi",
     "bakiyem ne kadar",
+    "EFT yapmak istiyorum",
+    "2500 K1",
+    "evet",
 ]
 
 

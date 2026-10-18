@@ -3,9 +3,13 @@ import re
 CARD_PATTERN = re.compile(r"(?:\d[ -]?){13,19}")
 
 
+IBAN_PATTERN = re.compile(r"\bTR\d{2}(?:\s?\d){10,30}\b", re.IGNORECASE)
+
+
 def redact(text: str) -> str:
-    """Remove card-like digit runs before the text reaches the model."""
-    return CARD_PATTERN.sub("[kart numarası çıkarıldı]", text)
+    """Remove full IBANs and card-like digit runs before the text reaches the model."""
+    without_ibans = IBAN_PATTERN.sub("[IBAN çıkarıldı]", text)
+    return CARD_PATTERN.sub("[kart numarası çıkarıldı]", without_ibans)
 
 
 class Memory:

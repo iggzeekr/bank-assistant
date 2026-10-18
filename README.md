@@ -6,9 +6,10 @@ What it does:
 
 - The prompt keeps the customer segment and the last six turns, so a follow-up such as "peki ücreti ne kadar" stays on the EFT question.
 - EFT, card, and privacy questions are answered from `knowledge/`. Search is TF-IDF over those files. The model sees the matching note, not the whole folder.
-- A transfer reference such as `T2048` calls `lookup_transfer`. A balance question calls `lookup_balance` for the customer on the profile. The model answers from that result.
+- A transfer reference such as `T2048` calls `lookup_transfer`. A balance question calls `lookup_balance`. "transferlerim" lists recent transfers without a reference.
+- An EFT request opens a draft. The assistant asks for the missing amount and saved payee, checks the balance and the daily limit, and records the transfer only after the customer says yes.
 - A short greeting with no document overlap skips search and calls `LLM_MODEL_SMALL`.
-- Card-like numbers are removed before any text is sent. Tool results contain a masked account, never a full IBAN, card number, password, or one-time code.
+- Card-like numbers and full IBANs are removed before any text is sent. Tool results contain a masked account.
 
 ## Run
 
@@ -45,7 +46,10 @@ python main.py
 | `kartımı kaybettim ne yapmalıyım` | `rag` | The card note. |
 | `T2048 transferim gerçekleşti mi` | `tool` | Transfer amount, status, date, and masked recipient account. |
 | `bakiyem ne kadar` | `tool` | Masked account and available balance for customer `M1001`. |
+| `EFT yapmak istiyorum` | `dialog` | Asks for the amount and a saved payee (`K1`, `K2`). |
+| `2500 K1` | `dialog` | Checks balance, fee, and the 100.000 TL daily limit, then waits for confirmation. |
+| `evet` | `dialog` | Records the EFT only after that confirmation. |
 
 ## Scope
 
-This is a local flow over three policy notes, two sample transfers, and one sample account. It is not connected to a core banking system. The two model names save cost only when `LLM_MODEL_SMALL` is a smaller model than `LLM_MODEL`.
+This is a local flow over three policy notes, two sample transfers, two saved payees, and one sample account. It is not connected to a core banking system. The two model names save cost only when `LLM_MODEL_SMALL` is a smaller model than `LLM_MODEL`.
