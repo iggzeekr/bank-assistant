@@ -199,6 +199,31 @@ class PipelineTests(unittest.TestCase):
         self.assertNotIn("330006100519786457841326", sent)
         self.assertIn("IBAN çıkarıldı", sent)
 
+    def test_embedding_matches_a_different_word_for_the_same_fee(self):
+        plain = Index.from_dir(ROOT / "knowledge")
+        self.assertFalse(any(chunk.source == "eft.md" for chunk, _score in plain.search("masraf ne kadar")))
+        embedded = Index.from_dir(ROOT / "knowledge", embedder=_FeeSynonyms())
+        hits = embedded.search("masraf ne kadar")
+        self.assertEqual(hits[0][0].source, "eft.md")
+        self.assertEqual(embedded.method, "embedding")
+
+
+class _FeeSynonyms:
+    def embed(self, text: str) -> list[float]:
+        return self.embed_many([text])[0]
+
+    def embed_many(self, texts: list[str]) -> list[list[float]]:
+        vectors = []
+        for text in texts:
+            lowered = text.casefold()
+            if "masraf" in lowered or "ücret" in lowered or "eft" in lowered:
+                vectors.append([1.0, 0.0])
+            elif "kart" in lowered:
+                vectors.append([0.0, 1.0])
+            else:
+                vectors.append([0.0, 0.0])
+        return vectors
+
 
 if __name__ == "__main__":
     unittest.main()

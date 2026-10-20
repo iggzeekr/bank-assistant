@@ -31,6 +31,7 @@ class Answer:
     prompt_tokens: int
     completion_tokens: int
     evidence: str = ""
+    retrieval: str = "tfidf"
 
 
 class Assistant:
@@ -121,6 +122,7 @@ class Assistant:
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             evidence="\n".join(evidence_parts),
+            retrieval=self.index.method,
         )
 
 

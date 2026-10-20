@@ -5,7 +5,8 @@ A local retail-banking support assistant. It answers from bank policy notes, the
 What it does:
 
 - The prompt keeps the customer segment and the last six turns, so a follow-up such as "peki ücreti ne kadar" stays on the EFT question.
-- EFT, card, and privacy questions are answered from `knowledge/`. Search is TF-IDF over those files. The model sees the matching note, not the whole folder.
+- EFT, card, and privacy questions are answered from `knowledge/`. The model sees the matching note, not the whole folder.
+- Note search can use embeddings. `text-embedding-3-small` turns the question and each note into a list of 1536 numbers, so "masraf" can still find the fee note in `eft.md`. The live call returned HTTP 429, so that account had no remaining quota. Search then counts overlapping words instead. Startup prints `Embedding kapalı: HTTP 429`. In that mode "masraf" does not find `eft.md`, because the file says "ücret".
 - A transfer reference such as `T2048` calls `lookup_transfer`. A balance question calls `lookup_balance`. "transferlerim" lists recent transfers. "transferim nerede" without a reference asks which one.
 - An EFT request opens a draft. The assistant asks for the missing amount and saved payee, checks the balance and the daily limit, and records the transfer only after the customer says yes.
 - A short greeting with no document overlap skips search and calls `LLM_MODEL_SMALL`.

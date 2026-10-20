@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 
+from assistant.embed import from_env as embedder_from_env
 from assistant.llm import from_env
 from assistant.memory import Memory
 from assistant.pipeline import Assistant
@@ -15,18 +16,18 @@ ROOT = Path(__file__).resolve().parent
 def load_env(path: Path) -> None:
     if not path.exists():
         return
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
         stripped = line.strip()
         if not stripped or stripped.startswith("#") or "=" not in stripped:
             continue
         key, value = stripped.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip())
+        os.environ[key.strip()] = value.strip().strip('"').strip("'")
 
 
 def build(live: bool) -> Assistant:
     load_env(ROOT / ".env")
     profile = json.loads((ROOT / "data" / "profile.json").read_text(encoding="utf-8"))
-    index = Index.from_dir(ROOT / "knowledge")
+    index = Index.from_dir(ROOT / "knowledge", embedder=embedder_from_env())
     transfers = load_transfers(ROOT / "data" / "transfers.json")
     accounts = load_accounts(ROOT / "data" / "accounts.json")
     payees = load_payees(ROOT / "data" / "payees.json")
@@ -46,7 +47,7 @@ def build(live: bool) -> Assistant:
 def print_answer(result) -> None:
     sources = ", ".join(result.sources) if result.sources else "-"
     print(
-        f"[{result.path} | {result.model} | {result.latency_ms} ms"
+        f"[{result.path} | {result.retrieval} | {result.model} | {result.latency_ms} ms"
         f" | kaynak: {sources} | token: {result.prompt_tokens}+{result.completion_tokens}]"
     )
     print(result.text)
@@ -55,6 +56,11 @@ def print_answer(result) -> None:
 
 def chat(live: bool) -> None:
     assistant = build(live)
+    if assistant.index.method != "embedding":
+        reason = assistant.index.embed_error or "bilinmeyen hata"
+        print(f"Embedding kapalı: {reason}. Kelime sayımı kullanılacak.")
+    else:
+        print("Embedding açık.")
     print("Bank Assistant. Çıkmak için boş satır, sıfırlamak için /reset.")
     while True:
         try:
