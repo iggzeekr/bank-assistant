@@ -54,5 +54,9 @@
     {"user": "kartımı kapat", "path": "dialog", "contains": "prepare_card_block"},
     {"user": "evet", "path": "dialog", "contains": "kapalı"}
   ]},
-  {"id": "unknown-topic", "turns": [{"user": "altın hesabı açılıyor mu", "path": "rag", "contains": "Bu bilgi belgelerde yok"}]}
+  {"id": "unknown-topic", "turns": [{"user": "altın hesabı açılıyor mu", "path": "rag", "contains": "Bu bilgi belgelerde yok"}]},
+  {"id": "nonsense-after-eft", "turns": [
+    {"user": "EFT ücreti ne kadar", "path": "rag", "source": "eft.md", "contains": "15 TL"},
+    {"user": "dkdksld", "path": "rag", "contains": "Bu bilgi belgelerde yok"}
+  ]}
 ]

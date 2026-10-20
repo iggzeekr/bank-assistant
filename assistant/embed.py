@@ -45,4 +45,5 @@ def from_env() -> Embedder | None:
         base_url=os.environ.get("EMBED_BASE_URL", "https://api.openai.com/v1"),
         api_key=api_key,
         model=os.environ.get("EMBED_MODEL", "text-embedding-3-small"),
+        timeout=10,
     )

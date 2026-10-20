@@ -38,6 +38,7 @@ class Answer:
     evidence: str = ""
     retrieval: str = "tfidf"
     audit: str = ""
+    payload: dict | None = None
 
 
 class Assistant:
@@ -95,7 +96,7 @@ class Assistant:
         previous = self.memory.previous_user_message()
         hits = self.index.search(cleaned)
         top_score = hits[0][1] if hits else 0.0
-        if previous and top_score < RAG_SCORE_FLOOR:
+        if previous and 0 < top_score < RAG_SCORE_FLOOR:
             hits = self.index.search(f"{previous} {cleaned}")
             top_score = hits[0][1] if hits else 0.0
         transfer_id = find_transfer_id(cleaned)
@@ -174,6 +175,7 @@ class Assistant:
             evidence="\n".join(evidence_parts),
             retrieval=self.index.method,
             audit=audit_line,
+            payload=tool_result if isinstance(tool_result, dict) else None,
         )
 
 

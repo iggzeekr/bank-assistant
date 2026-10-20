@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bank Assistant</title>
+  <style>
+    :root {
+      --ink: #1c2430;
+      --muted: #5d6b76;
+      --line: #d9e0e4;
+      --paper: #f3f6f4;
+      --card: #ffffff;
+      --bank: #0e3b34;
+      --bank-2: #1f6f62;
+      --user: #0e3b34;
+      --warn: #8a4b08;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background: var(--paper);
+      font: 16px/1.45 "Segoe UI", sans-serif;
+    }
+    .app {
+      max-width: 760px;
+      margin: 0 auto;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 16px 16px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: -0.02em;
+    }
+    .who, .mode {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    button, .chip {
+      font: inherit;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--ink);
+      cursor: pointer;
+    }
+    button { padding: 8px 12px; }
+    button.primary {
+      background: var(--bank);
+      color: white;
+      border-color: var(--bank);
+    }
+    button:disabled { opacity: 0.55; cursor: default; }
+    .log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .bubble {
+      max-width: min(100%, 560px);
+      padding: 12px 14px;
+      border-radius: 16px;
+      white-space: pre-wrap;
+    }
+    .user {
+      align-self: flex-end;
+      background: var(--user);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+    .assistant {
+      align-self: flex-start;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-bottom-left-radius: 4px;
+    }
+    .meta {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .empty { color: var(--muted); margin: 8px 0 0; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 10px; }
+    .chip { padding: 7px 12px; }
+    .chip:hover, button:hover { border-color: var(--bank-2); }
+    form {
+      display: flex;
+      gap: 8px;
+      padding-top: 10px;
+      border-top: 1px solid var(--line);
+    }
+    input[type="text"] {
+      flex: 1;
+      min-width: 0;
+      font: inherit;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--ink);
+    }
+    input:focus, button:focus, .chip:focus { outline: 2px solid var(--bank-2); outline-offset: 2px; }
+    .error { color: var(--warn); }
+    @media (max-width: 640px) {
+      header { flex-direction: column; }
+      .actions { justify-content: flex-start; }
+      h1 { font-size: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <h1>Bank Assistant</h1>
+        <p class="who" id="who">Yükleniyor</p>
+        <p class="mode" id="mode"></p>
+      </div>
+      <div class="actions">
+        <button type="button" id="clear">Konuşmayı sil</button>
+        <button type="button" id="reload">Kayıtları geri yükle</button>
+      </div>
+    </header>
+    <div class="log" id="log" aria-live="polite">
+      <p class="empty" id="empty">Örnek müşteri bu bilgisayardaki kayıtlardan cevaplanır. Çekirdek bankacılığa bağlı değildir.</p>
+    </div>
+    <div class="chips" id="chips"></div>
+    <form id="form">
+      <label class="visually-hidden" for="message" style="position:absolute;left:-9999px">Mesaj</label>
+      <input id="message" type="text" autocomplete="off" placeholder="Mesajınız">
+      <button class="primary" id="send" type="submit">Gönder</button>
+    </form>
+  </div>
+  <script>
+    const log = document.querySelector("#log");
+    const empty = document.querySelector("#empty");
+    const form = document.querySelector("#form");
+    const input = document.querySelector("#message");
+    const send = document.querySelector("#send");
+    const prompts = [
+      "Bakiyem ne kadar",
+      "T2048 gerçekleşti mi",
+      "T1802 durumu",
+      "EFT ücreti ne kadar",
+      "2500 TL K1 alıcısına EFT yapmak istiyorum",
+      "Kartımı kapat"
+    ];
+
+    function addBubble(kind, text, meta) {
+      empty.hidden = true;
+      const node = document.createElement("div");
+      node.className = "bubble " + kind;
+      node.textContent = text;
+      if (meta) {
+        const note = document.createElement("p");
+        note.className = "meta";
+        note.textContent = meta;
+        node.append(note);
+      }
+      log.append(node);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function metaLine(body) {
+      const sources = body.sources && body.sources.length ? body.sources.join(", ") : "-";
+      const audit = body.audit ? " · iz: " + body.audit : "";
+      return body.path + " · " + body.retrieval + " · kaynak: " + sources + audit;
+    }
+
+    async function refresh() {
+      const response = await fetch("/api/status");
+      const body = await response.json();
+      document.querySelector("#who").textContent =
+        body.name + " · " + body.customer_id + " · " + body.segment;
+      const search = body.retrieval === "embedding"
+        ? "Arama: embedding"
+        : "Arama: kelime sayımı" + (body.embed_error ? " (" + body.embed_error + ")" : "");
+      document.querySelector("#mode").textContent =
+        (body.live ? "Model açık" : "Model kapalı") + " · " + search;
+    }
+
+    async function sendMessage(text) {
+      const message = text.trim();
+      if (!message) return;
+      addBubble("user", message);
+      input.value = "";
+      send.disabled = true;
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message })
+        });
+        const body = await response.json();
+        if (!response.ok) {
+          addBubble("assistant error", body.error || "İstek tamamlanamadı.");
+          return;
+        }
+        const lastUser = log.querySelector(".user:last-of-type");
+        if (lastUser && body.echo && body.echo !== message) lastUser.firstChild.textContent = body.echo;
+        addBubble("assistant", body.text, metaLine(body));
+      } catch (error) {
+        addBubble("assistant error", "Sayfaya ulaşılamadı.");
+      } finally {
+        send.disabled = false;
+        input.focus();
+      }
+    }
+
+    async function reset(ledger) {
+      await fetch("/api/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ledger })
+      });
+      log.replaceChildren(empty);
+      empty.hidden = false;
+      await refresh();
+    }
+
+    prompts.forEach((prompt) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "chip";
+      chip.textContent = prompt;
+      chip.addEventListener("click", () => sendMessage(prompt));
+      document.querySelector("#chips").append(chip);
+    });
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      sendMessage(input.value);
+    });
+    document.querySelector("#clear").addEventListener("click", () => reset(false));
+    document.querySelector("#reload").addEventListener("click", () => reset(true));
+    refresh();
+    input.focus();
+  </script>
+</body>
+</html>

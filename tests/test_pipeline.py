@@ -229,6 +229,15 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("15 TL", answer.evidence)
         self.assertNotIn("08:30", answer.evidence)
 
+    def test_nonsense_does_not_reuse_the_previous_note(self):
+        bot, _llm = self.assistant()
+        bot.ask("EFT ücreti ne kadar")
+        answer = bot.ask("dkdksld")
+        self.assertEqual(answer.path, "rag")
+        self.assertIn("Bu bilgi belgelerde yok", answer.evidence)
+        self.assertNotIn("15 TL", answer.evidence)
+        self.assertEqual(answer.sources, [])
+
     def test_unknown_topic_does_not_attach_a_note(self):
         bot, _llm = self.assistant()
         answer = bot.ask("altın hesabı açılıyor mu")

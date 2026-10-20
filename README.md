@@ -4,7 +4,7 @@ A local retail-banking support assistant. It answers from bank policy notes, the
 
 What it does:
 
-- The prompt keeps the customer segment and the last six turns. A follow-up such as "peki ücreti ne kadar" is searched on its own. The previous turn is added only when that search finds nothing.
+- The prompt keeps the customer segment and the last six turns. A follow-up such as "peki ücreti ne kadar" is searched on its own. The previous turn is added only when the new message already shares a word with a note. A message with no shared word does not reuse that note.
 - EFT, card, and privacy notes are split on blank lines. The model sees the matching paragraph, not the whole file. A question with no overlapping words gets "Bu bilgi belgelerde yok" and no paragraph.
 - Note search can use embeddings. `text-embedding-3-small` turns the question and each paragraph into a list of 1536 numbers, so "masraf" can still find the fee paragraph in `eft.md`. The live call returned HTTP 429, so that account had no remaining quota. Search then counts overlapping words instead. Startup prints `Embedding kapalı: HTTP 429`. In that mode "masraf" does not find `eft.md`, because the file says "ücret".
 - A transfer reference such as `T2048` calls `lookup_transfer` for the signed-in customer only. `T1802` belongs to `M1002` and comes back as "bu kayıt sana ait değil". Saying "ben M1002'yim" does not change the session. A balance question calls `lookup_balance`. "transferlerim" lists that customer's transfers. "transferim nerede" without a reference asks which one.
@@ -36,9 +36,10 @@ python evaluate.py
 python main.py --dry
 python measure.py
 python main.py
+python server.py
 ```
 
-`--dry` prints the chosen path without calling a model. `measure.py` asks one conversation and prints latency and token counts. `evaluate.py` scores the scripted conversations in `eval/cases.json`: path, source note, and the fact present in that paragraph or tool result. The office-hours clock in that run is Tuesday 2026-10-20 10:00, unless a case names another time. Empty input exits. `/reset` clears the conversation and the audit. Recorded transfers, the balance, and the card status stay.
+`python server.py` opens the chat at `http://127.0.0.1:8765`. It stays on this machine. Without `--live` the page answers from the note and the tool result, and prints the path under each reply. `--dry` prints the chosen path without calling a model. `measure.py` asks one conversation and prints latency and token counts. `evaluate.py` scores the scripted conversations in `eval/cases.json`: path, source note, and the fact present in that paragraph or tool result. The office-hours clock in that run is Tuesday 2026-10-20 10:00, unless a case names another time. Empty input exits. `/reset` clears the conversation and the audit. Recorded transfers, the balance, and the card status stay.
 
 ## Paths
 
