@@ -1,6 +1,8 @@
 # Bank Assistant
 
 A local retail-banking support assistant. It answers from bank policy notes, then calls one banking tool when the customer asks for a transfer or a balance. Sample customers and transfers are fictional and stay on this machine.
+<img width="333" height="666" alt="image" src="https://github.com/user-attachments/assets/c14df57c-96f0-4cca-ba10-1fd96f07bc08" />
+
 
 What it does:
 
