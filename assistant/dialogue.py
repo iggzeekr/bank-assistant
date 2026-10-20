@@ -7,6 +7,7 @@ START = re.compile(
     re.IGNORECASE,
 )
 LIST = re.compile(r"\btransferlerim\b|\bson transfer", re.IGNORECASE)
+AMBIGUOUS = re.compile(r"\b(?:transferim|havalem)\b", re.IGNORECASE)
 PAYEE = re.compile(r"\bK\d\b", re.IGNORECASE)
 AMOUNT = re.compile(r"\b(\d{1,3}(?:\.\d{3})+|\d{2,7})\b")
 CONFIRM = re.compile(r"\b(?:evet|onaylıyorum|onayla)\b", re.IGNORECASE)
@@ -38,6 +39,10 @@ def wants_transfer_list(message: str) -> bool:
     return LIST.search(message) is not None and find_transfer_id(message) is None
 
 
+def wants_transfer_clarification(message: str) -> bool:
+    return AMBIGUOUS.search(message) is not None and find_transfer_id(message) is None
+
+
 def parse_amount(message: str) -> int | None:
     without_ids = PAYEE.sub(" ", message)
     without_ids = re.sub(r"\bT\d{4}\b", " ", without_ids, flags=re.IGNORECASE)
@@ -65,6 +70,7 @@ def plan_turn(message, draft, accounts, customer_id, payees, transfers) -> tuple
             "action": "reject_iban",
             "allowed": False,
             "reason": "Tam IBAN alınmaz. Kayıtlı alıcı kodu kullanılır.",
+            "redacted": IBAN_MARK,
         }
 
     if draft.stage == "confirm" and CANCEL.search(message):
@@ -105,6 +111,13 @@ def plan_turn(message, draft, accounts, customer_id, payees, transfers) -> tuple
         draft.prepared = prepared
         draft.stage = "confirm" if prepared["allowed"] else "collect"
         return "dialog", prepared
+
+    if wants_transfer_clarification(message):
+        return "dialog", {
+            "action": "clarify_transfer",
+            "ask_which": True,
+            "transfers": [lookup_transfer(transfers, row_id) for row_id in sorted(transfers)],
+        }
 
     if wants_transfer_list(message):
         return "tool", {

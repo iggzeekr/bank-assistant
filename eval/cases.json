@@ -1,0 +1,37 @@
+[
+  {"id": "greet", "turns": [{"user": "merhaba", "path": "small"}]},
+  {"id": "short-thanks", "turns": [{"user": "teşekkürler", "path": "small"}]},
+  {"id": "yes-without-a-draft", "turns": [{"user": "evet", "path": "small"}]},
+  {"id": "eft-hours", "turns": [{"user": "EFT saat kaça kadar yapılabilir", "path": "rag", "source": "eft.md", "contains": "17:00"}]},
+  {"id": "eft-fee-followup", "turns": [
+    {"user": "EFT saat kaça kadar yapılabilir", "path": "rag", "source": "eft.md"},
+    {"user": "peki ücreti ne kadar", "path": "rag", "source": "eft.md", "contains": "15 TL"}
+  ]},
+  {"id": "eft-daily-limit", "turns": [{"user": "günlük EFT limiti ne kadar", "path": "rag", "source": "eft.md", "contains": "100.000"}]},
+  {"id": "eft-after-cutoff", "turns": [{"user": "17:00 den sonra verilen EFT ne zaman işlenir", "path": "rag", "source": "eft.md", "contains": "sonraki iş günü"}]},
+  {"id": "internal-transfer", "turns": [{"user": "havale ne zaman gerçekleşir", "path": "rag", "source": "eft.md", "contains": "anında"}]},
+  {"id": "lost-card", "turns": [{"user": "kartımı kaybettim ne yapmalıyım", "path": "rag", "source": "kart.md", "contains": "kapat"}]},
+  {"id": "replacement-card", "turns": [{"user": "kaybettim yeni kart kaç günde gelir", "path": "rag", "source": "kart.md", "contains": "7 iş günü"}]},
+  {"id": "minimum-payment", "turns": [{"user": "kredi kartı asgari ödeme ne kadar", "path": "rag", "source": "kart.md", "contains": "yüzde 20"}]},
+  {"id": "do-not-ask-for-secrets", "turns": [{"user": "tek kullanımlık kod ister misin", "path": "rag", "source": "gizlilik.md", "contains": "tek kullanımlık kod"}]},
+  {"id": "known-transfer", "turns": [{"user": "T2048 transferim gerçekleşti mi", "path": "tool", "contains": "gerçekleşti"}]},
+  {"id": "pending-transfer", "turns": [{"user": "T2049 durumunu söyler misin", "path": "tool", "contains": "beklemede"}]},
+  {"id": "unknown-transfer", "turns": [{"user": "T9999 transferim nerede", "path": "tool", "contains": "False"}]},
+  {"id": "balance", "turns": [{"user": "bakiyem ne kadar", "path": "tool", "contains": "12450.75"}]},
+  {"id": "transfer-list", "turns": [{"user": "transferlerim", "path": "tool", "contains": "T2048"}]},
+  {"id": "which-transfer", "turns": [
+    {"user": "transferim nerede", "path": "dialog", "contains": ["clarify_transfer", "T2048", "T2049"]},
+    {"user": "T2048", "path": "tool", "contains": "gerçekleşti"}
+  ]},
+  {"id": "eft-needs-slots", "turns": [{"user": "EFT yapmak istiyorum", "path": "dialog", "source": "eft.md", "contains": "collect_eft"}]},
+  {"id": "eft-confirm-then-record", "turns": [
+    {"user": "2500 TL K1 alıcısına EFT yapmak istiyorum", "path": "dialog", "contains": "prepare_eft"},
+    {"user": "evet", "path": "dialog", "contains": "T2050"}
+  ]},
+  {"id": "eft-over-daily-limit", "turns": [{"user": "200000 TL K1 alıcısına EFT yapmak istiyorum", "path": "dialog", "contains": "günlük limit aşılıyor"}]},
+  {"id": "eft-cancel", "turns": [
+    {"user": "1500 K2 için EFT yapmak istiyorum", "path": "dialog", "contains": "prepare_eft"},
+    {"user": "vazgeç", "path": "dialog", "contains": "cancel_eft"}
+  ]},
+  {"id": "reject-raw-iban", "turns": [{"user": "TR330006100519786457841326 hesabına EFT yapmak istiyorum", "path": "dialog", "contains": "IBAN çıkarıldı"}]}
+]

@@ -6,7 +6,7 @@ What it does:
 
 - The prompt keeps the customer segment and the last six turns, so a follow-up such as "peki ücreti ne kadar" stays on the EFT question.
 - EFT, card, and privacy questions are answered from `knowledge/`. Search is TF-IDF over those files. The model sees the matching note, not the whole folder.
-- A transfer reference such as `T2048` calls `lookup_transfer`. A balance question calls `lookup_balance`. "transferlerim" lists recent transfers without a reference.
+- A transfer reference such as `T2048` calls `lookup_transfer`. A balance question calls `lookup_balance`. "transferlerim" lists recent transfers. "transferim nerede" without a reference asks which one.
 - An EFT request opens a draft. The assistant asks for the missing amount and saved payee, checks the balance and the daily limit, and records the transfer only after the customer says yes.
 - A short greeting with no document overlap skips search and calls `LLM_MODEL_SMALL`.
 - Card-like numbers and full IBANs are removed before any text is sent. Tool results contain a masked account.
@@ -29,12 +29,13 @@ LLM_MODEL_SMALL=llama-3.1-8b-instant
 
 ```powershell
 python -m unittest discover -s tests -v
+python evaluate.py
 python main.py --dry
 python measure.py
 python main.py
 ```
 
-`--dry` prints the chosen path without calling a model. `measure.py` asks six banking questions in one conversation and prints latency and token counts. Empty input exits. `/reset` clears the conversation.
+`--dry` prints the chosen path without calling a model. `measure.py` asks one conversation and prints latency and token counts. `evaluate.py` scores the scripted conversations in `eval/cases.json`: path, source note, and the fact present in that note or tool result. Empty input exits. `/reset` clears the conversation.
 
 ## Paths
 
@@ -44,7 +45,9 @@ python main.py
 | `EFT saat kaça kadar yapılabilir` | `rag` | The EFT note. |
 | `peki ücreti ne kadar` after the EFT question | `rag` | The previous user turn is added to the search text. |
 | `kartımı kaybettim ne yapmalıyım` | `rag` | The card note. |
-| `T2048 transferim gerçekleşti mi` | `tool` | Transfer amount, status, date, and masked recipient account. |
+| `T2048 transferim gerçekleşti mi` | `tool` | That transfer's amount, status, date, and masked account. |
+| `transferlerim` | `tool` | Recent transfers, with no reference required. |
+| `transferim nerede` | `dialog` | Lists T2048 and T2049 and asks which one. |
 | `bakiyem ne kadar` | `tool` | Masked account and available balance for customer `M1001`. |
 | `EFT yapmak istiyorum` | `dialog` | Asks for the amount and a saved payee (`K1`, `K2`). |
 | `2500 K1` | `dialog` | Checks balance, fee, and the 100.000 TL daily limit, then waits for confirmation. |

@@ -179,6 +179,18 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(answer.path, "tool")
         self.assertIn("T2048", llm.models[0][1][1]["content"])
 
+    def test_missing_reference_asks_which_transfer(self):
+        bot, llm = self.assistant()
+        answer = bot.ask("transferim nerede")
+        self.assertEqual(answer.path, "dialog")
+        sent = llm.models[0][1][1]["content"]
+        self.assertIn("clarify_transfer", sent)
+        self.assertIn("T2048", sent)
+        self.assertIn("T2049", sent)
+        follow = bot.ask("T2048")
+        self.assertEqual(follow.path, "tool")
+        self.assertIn("gerçekleşti", llm.models[1][1][1]["content"])
+
     def test_full_iban_is_removed_before_the_model(self):
         bot, llm = self.assistant()
         answer = bot.ask("IBAN TR330006100519786457841326 hesabına yolla")

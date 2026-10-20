@@ -16,6 +16,7 @@ Kurallar:
 - Önceki turda konuşulan banka işlemini sürdür.
 - EFT taslağında tutar veya kayıtlı alıcı eksikse onları sor. İkisi de varsa ve allowed true ise onay iste.
 - allowed false ise transfer oluşturma. Onay cümlesi gelmeden submit edilmiş sayma.
+- Referans numarası olmadan transfer durumu sorulursa kayıtlı transferleri say ve hangisi olduğunu sor. Birini seçme.
 - Tam IBAN isteme. Kayıtlı alıcı kodunu kullan.
 """
 
@@ -29,6 +30,7 @@ class Answer:
     sources: list[str]
     prompt_tokens: int
     completion_tokens: int
+    evidence: str = ""
 
 
 class Assistant:
@@ -107,6 +109,9 @@ class Assistant:
         elapsed = int((time.perf_counter() - started) * 1000)
         self.memory.add("user", cleaned)
         self.memory.add("assistant", text)
+        evidence_parts = [chunk.text for chunk, _score in passages]
+        if tool_result is not None:
+            evidence_parts.append(str(tool_result))
         return Answer(
             text=text,
             path=path,
@@ -115,6 +120,7 @@ class Assistant:
             sources=sources,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
+            evidence="\n".join(evidence_parts),
         )
 
 
