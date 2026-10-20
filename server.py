@@ -8,7 +8,6 @@ from threading import Lock
 from urllib.parse import urlparse
 
 from assistant.memory import redact
-from assistant.present import present
 from main import build
 
 ROOT = Path(__file__).resolve().parent
@@ -38,7 +37,7 @@ def status(app: App) -> dict:
 
 def reply(app: App, message: str) -> dict:
     answer = app.assistant.ask(message, live=app.live)
-    text = answer.text if app.live else present(message, answer)
+    text = answer.text
     return {
         "echo": redact(message).strip(),
         "text": text,

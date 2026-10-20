@@ -229,6 +229,14 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("15 TL", answer.evidence)
         self.assertNotIn("08:30", answer.evidence)
 
+    def test_local_model_returns_only_the_sentence(self):
+        bot, _llm = self.assistant()
+        answer = bot.ask("bakiyem ne kadar", live=False)
+        self.assertIn("12.450,75 TL", answer.text)
+        self.assertNotIn("attention", answer.text)
+        self.assertGreater(answer.prompt_tokens, 0)
+        self.assertEqual(answer.model, "local-layers")
+
     def test_nonsense_does_not_reuse_the_previous_note(self):
         bot, _llm = self.assistant()
         bot.ask("EFT ücreti ne kadar")

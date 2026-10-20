@@ -40,9 +40,11 @@ python main.py --dry
 python measure.py
 python main.py
 python server.py
+python show_layers.py
+python show_layers.py bakiyem ne kadar
 ```
 
-`python server.py` opens the chat at `http://127.0.0.1:8765`. It stays on this machine. Without `--live` the page answers from the note and the tool result, and prints the path under each reply. `--dry` prints the chosen path without calling a model. `measure.py` asks one conversation and prints latency and token counts. `evaluate.py` scores the scripted conversations in `eval/cases.json`: path, source note, and the fact present in that paragraph or tool result. The office-hours clock in that run is Tuesday 2026-10-20 10:00, unless a case names another time. Empty input exits. `/reset` clears the conversation and the audit. Recorded transfers, the balance, and the card status stay.
+`python show_layers.py` prints one transformer block for `EFT ücreti`: embedding, layer norm, causal attention, a small GELU layer, logits, and the next-token probabilities at temperature 1.0 and 0.2. That run uses four words, and the highest logit is `TL`. Another sentence uses the same stages. `python show_layers.py bakiyem ne kadar` embeds each word, applies the causal mask, and picks one word from `EFT`, `ücreti`, `15`, `TL`, `bakiye`, and `yok`. On that sentence the highest logit is `15`. `python show_layers.py kart limitim kac` picks `bakiye`. The chat page does not print these scores. `python server.py` opens the chat at `http://127.0.0.1:8765`. It stays on this machine. Without `--live` the page runs this block over the prompt and shows the banking sentence from the note or the tool. The path is printed under each reply. `--dry` prints the chosen path without calling a model. `measure.py` asks one conversation and prints latency and token counts. `evaluate.py` scores the scripted conversations in `eval/cases.json`: path, source note, and the fact present in that paragraph or tool result. The office-hours clock in that run is Tuesday 2026-10-20 10:00, unless a case names another time. Empty input exits. `/reset` clears the conversation and the audit. Recorded transfers, the balance, and the card status stay.
 
 ## Paths
 

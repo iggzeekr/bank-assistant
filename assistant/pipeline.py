@@ -3,7 +3,9 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from assistant.dialogue import CardDraft, EftDraft, plan_turn
+from assistant.llm import LocalLLM
 from assistant.memory import redact
+from assistant.present import present
 from assistant.router import RAG_SCORE_FLOOR, choose_path
 from assistant.tools import find_transfer_id, lookup_balance, lookup_transfer
 
@@ -139,6 +141,10 @@ class Assistant:
             passages,
             tool_result,
         )
+        evidence_parts = [chunk.text for chunk, _score in passages]
+        if tool_result is not None:
+            evidence_parts.append(str(tool_result))
+        evidence = "\n".join(evidence_parts)
         started = time.perf_counter()
         if live:
             completion = self.llm.complete(messages, model)
@@ -146,15 +152,28 @@ class Assistant:
             prompt_tokens = completion.prompt_tokens
             completion_tokens = completion.completion_tokens
         else:
-            text = _dry_text(path, passages, tool_result)
-            prompt_tokens = 0
-            completion_tokens = 0
+            grounded = present(
+                cleaned,
+                Answer(
+                    text="",
+                    path=path,
+                    model=model,
+                    latency_ms=0,
+                    sources=sources,
+                    prompt_tokens=0,
+                    completion_tokens=0,
+                    evidence=evidence,
+                    payload=tool_result if isinstance(tool_result, dict) else None,
+                ),
+            )
+            completion = LocalLLM().complete(messages, grounded)
+            text = completion.text
+            prompt_tokens = completion.prompt_tokens
+            completion_tokens = completion.completion_tokens
+            model = "local-layers"
         elapsed = int((time.perf_counter() - started) * 1000)
         self.memory.add("user", cleaned)
         self.memory.add("assistant", text)
-        evidence_parts = [chunk.text for chunk, _score in passages]
-        if tool_result is not None:
-            evidence_parts.append(str(tool_result))
         audit_line = ""
         if isinstance(tool_result, dict) and tool_result.get("action"):
             entry = {
@@ -172,7 +191,7 @@ class Assistant:
             sources=sources,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
-            evidence="\n".join(evidence_parts),
+            evidence=evidence,
             retrieval=self.index.method,
             audit=audit_line,
             payload=tool_result if isinstance(tool_result, dict) else None,

@@ -4,6 +4,8 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 
+from assistant.layers import encode_text
+
 
 @dataclass(frozen=True)
 class Completion:
@@ -42,6 +44,19 @@ class LLM:
             text=payload["choices"][0]["message"]["content"].strip(),
             prompt_tokens=int(usage.get("prompt_tokens") or 0),
             completion_tokens=int(usage.get("completion_tokens") or 0),
+        )
+
+
+class LocalLLM:
+    """Runs the layer stack on the prompt and returns only the sentence."""
+
+    def complete(self, messages: list[dict], grounded: str) -> Completion:
+        prompt = "\n".join(message["content"] for message in messages)
+        traced = encode_text(prompt)
+        return Completion(
+            text=grounded,
+            prompt_tokens=traced["n_tokens"],
+            completion_tokens=len(grounded.split()),
         )
 
 
