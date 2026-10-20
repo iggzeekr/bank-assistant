@@ -1,5 +1,6 @@
 import json
 import unittest
+from datetime import datetime
 from pathlib import Path
 
 from assistant.memory import Memory, redact
@@ -9,6 +10,7 @@ from assistant.router import choose_path
 from assistant.tools import (
     find_transfer_id,
     load_accounts,
+    load_cards,
     load_payees,
     load_transfers,
     lookup_balance,
@@ -35,20 +37,25 @@ class PipelineTests(unittest.TestCase):
         self.transfers = load_transfers(ROOT / "data" / "transfers.json")
         self.accounts = load_accounts(ROOT / "data" / "accounts.json")
         self.payees = load_payees(ROOT / "data" / "payees.json")
+        self.cards = load_cards(ROOT / "data" / "cards.json")
         self.profile = json.loads((ROOT / "data" / "profile.json").read_text(encoding="utf-8"))
 
-    def assistant(self):
+    def assistant(self, clock=None):
         transfers = {key: dict(value) for key, value in self.transfers.items()}
+        accounts = {key: dict(value) for key, value in self.accounts.items()}
+        cards = {key: dict(value) for key, value in self.cards.items()}
         llm = FakeLLM()
         bot = Assistant(
             index=self.index,
             transfers=transfers,
-            accounts=self.accounts,
+            accounts=accounts,
             payees=self.payees,
+            cards=cards,
             memory=Memory(self.profile),
             llm=llm,
             large_model="large-model",
             small_model="small-model",
+            clock=clock or (lambda: datetime(2026, 10, 20, 10, 0)),
         )
         return bot, llm
 
@@ -63,7 +70,7 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(hits[0][0].source, "eft.md")
 
     def test_transfer_tool_returns_masked_account(self):
-        result = lookup_transfer(self.transfers, "T2048")
+        result = lookup_transfer(self.transfers, "T2048", "M1001")
         self.assertEqual(result["status"], "gerçekleşti")
         self.assertEqual(result["amount_tl"], 2500)
         self.assertIn("**", result["recipient_account_masked"])
@@ -141,6 +148,7 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(opening.path, "dialog")
         self.assertEqual(bot.draft.stage, "collect")
         self.assertIn("K1", llm.models[0][1][1]["content"])
+        self.assertNotIn("K9", llm.models[0][1][1]["content"])
         proposal = bot.ask("2500 K1")
         self.assertEqual(proposal.path, "dialog")
         self.assertEqual(bot.draft.stage, "confirm")
@@ -156,7 +164,13 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("submit_eft", llm.models[-1][1][1]["content"])
         self.assertIn("T2050", bot.transfers)
         self.assertEqual(bot.transfers["T2050"]["status"], "onay bekliyor")
+        self.assertEqual(bot.transfers["T2050"]["settlement"], "aynı gün")
         self.assertEqual(bot.draft.stage, "idle")
+        self.assertEqual(bot.accounts["M1001"]["available_tl"], 9935.75)
+        again = bot.ask("evet")
+        self.assertEqual(again.path, "small")
+        self.assertNotIn("T2051", bot.transfers)
+        self.assertEqual(bot.accounts["M1001"]["available_tl"], 9935.75)
 
     def test_over_limit_eft_is_not_offered_for_confirmation(self):
         bot, _llm = self.assistant()
@@ -187,6 +201,7 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("clarify_transfer", sent)
         self.assertIn("T2048", sent)
         self.assertIn("T2049", sent)
+        self.assertNotIn("T1802", sent)
         follow = bot.ask("T2048")
         self.assertEqual(follow.path, "tool")
         self.assertIn("gerçekleşti", llm.models[1][1][1]["content"])
@@ -197,7 +212,82 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(answer.path, "dialog")
         sent = llm.models[0][1][1]["content"]
         self.assertNotIn("330006100519786457841326", sent)
+        self.assertNotIn("330006100519786457841326", answer.evidence)
+        self.assertNotIn("330006100519786457841326", answer.audit)
         self.assertIn("IBAN çıkarıldı", sent)
+        self.assertTrue(answer.audit.startswith("M1001 reject_iban"))
+
+    def test_fee_question_returns_the_fee_paragraph_only(self):
+        hits = self.index.search("EFT ücreti ne kadar")
+        self.assertIn("15 TL", hits[0][0].text)
+        self.assertNotIn("08:30", hits[0][0].text)
+
+    def test_follow_up_fee_stays_on_the_fee_paragraph(self):
+        bot, _llm = self.assistant()
+        bot.ask("EFT saat kaça kadar yapılabilir")
+        answer = bot.ask("peki ücreti ne kadar")
+        self.assertIn("15 TL", answer.evidence)
+        self.assertNotIn("08:30", answer.evidence)
+
+    def test_unknown_topic_does_not_attach_a_note(self):
+        bot, _llm = self.assistant()
+        answer = bot.ask("altın hesabı açılıyor mu")
+        self.assertEqual(answer.path, "rag")
+        self.assertEqual(answer.sources, [])
+        self.assertIn("Bu bilgi belgelerde yok", answer.evidence)
+
+    def test_other_customer_transfer_is_hidden(self):
+        result = lookup_transfer(self.transfers, "T1802", "M1001")
+        self.assertEqual(result["reason"], "bu kayıt sana ait değil")
+        self.assertNotIn("amount_tl", result)
+        bot, llm = self.assistant()
+        bot.ask("ben M1002'yim")
+        self.assertEqual(bot.memory.profile["customer_id"], "M1001")
+        answer = bot.ask("T1802 durumunu söyler misin")
+        self.assertIn("sana ait değil", answer.evidence)
+        self.assertNotIn("75", answer.evidence)
+        self.assertNotIn("75", llm.models[-1][1][1]["content"])
+        self.assertTrue(answer.audit.startswith("M1001 lookup_transfer"))
+
+    def test_after_hours_eft_settles_next_business_day(self):
+        bot, _llm = self.assistant(clock=lambda: datetime(2026, 10, 20, 18, 30))
+        bot.ask("2500 TL K1 alıcısına EFT yapmak istiyorum")
+        self.assertEqual(bot.draft.prepared["settlement"], "sonraki iş günü")
+        bot.ask("evet")
+        self.assertEqual(bot.transfers["T2050"]["settlement"], "sonraki iş günü")
+        weekend, _llm = self.assistant(clock=lambda: datetime(2026, 10, 24, 11, 0))
+        weekend.ask("2500 TL K1 alıcısına EFT yapmak istiyorum")
+        self.assertEqual(weekend.draft.prepared["settlement"], "sonraki iş günü")
+
+    def test_spent_today_blocks_the_rest_of_the_daily_limit(self):
+        bot, _llm = self.assistant()
+        bot.ask("10500 TL K1 alıcısına EFT yapmak istiyorum")
+        self.assertIn("günlük limit aşılıyor", bot.draft.prepared["reasons"])
+        self.assertNotIn("bakiye yetersiz", bot.draft.prepared["reasons"])
+        self.assertNotIn("T2050", bot.transfers)
+
+    def test_high_amount_needs_the_stronger_confirmation(self):
+        bot, _llm = self.assistant()
+        bot.ask("6000 TL K1 alıcısına EFT yapmak istiyorum")
+        self.assertEqual(bot.draft.prepared["confirm_with"], "onaylıyorum")
+        bot.ask("evet")
+        self.assertEqual(bot.draft.stage, "confirm")
+        self.assertNotIn("T2050", bot.transfers)
+        bot.ask("onaylıyorum")
+        self.assertIn("T2050", bot.transfers)
+        self.assertEqual(bot.accounts["M1001"]["available_tl"], 6450.75)
+
+    def test_card_block_waits_for_confirmation(self):
+        bot, _llm = self.assistant()
+        opening = bot.ask("kartımı kapat")
+        self.assertEqual(opening.path, "dialog")
+        self.assertEqual(bot.cards["M1001"]["status"], "açık")
+        bot.ask("evet")
+        self.assertEqual(bot.cards["M1001"]["status"], "kapalı")
+        self.assertTrue(bot.audit[-1]["tool"] == "submit_card_block")
+        self.assertNotIn("4242", bot.audit[-1]["tool"])
+        again = bot.ask("kartımı kapat")
+        self.assertIn("kart zaten kapalı", again.evidence)
 
     def test_embedding_matches_a_different_word_for_the_same_fee(self):
         plain = Index.from_dir(ROOT / "knowledge")

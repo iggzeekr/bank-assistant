@@ -4,11 +4,13 @@ A local retail-banking support assistant. It answers from bank policy notes, the
 
 What it does:
 
-- The prompt keeps the customer segment and the last six turns, so a follow-up such as "peki ücreti ne kadar" stays on the EFT question.
-- EFT, card, and privacy questions are answered from `knowledge/`. The model sees the matching note, not the whole folder.
-- Note search can use embeddings. `text-embedding-3-small` turns the question and each note into a list of 1536 numbers, so "masraf" can still find the fee note in `eft.md`. The live call returned HTTP 429, so that account had no remaining quota. Search then counts overlapping words instead. Startup prints `Embedding kapalı: HTTP 429`. In that mode "masraf" does not find `eft.md`, because the file says "ücret".
-- A transfer reference such as `T2048` calls `lookup_transfer`. A balance question calls `lookup_balance`. "transferlerim" lists recent transfers. "transferim nerede" without a reference asks which one.
-- An EFT request opens a draft. The assistant asks for the missing amount and saved payee, checks the balance and the daily limit, and records the transfer only after the customer says yes.
+- The prompt keeps the customer segment and the last six turns. A follow-up such as "peki ücreti ne kadar" is searched on its own. The previous turn is added only when that search finds nothing.
+- EFT, card, and privacy notes are split on blank lines. The model sees the matching paragraph, not the whole file. A question with no overlapping words gets "Bu bilgi belgelerde yok" and no paragraph.
+- Note search can use embeddings. `text-embedding-3-small` turns the question and each paragraph into a list of 1536 numbers, so "masraf" can still find the fee paragraph in `eft.md`. The live call returned HTTP 429, so that account had no remaining quota. Search then counts overlapping words instead. Startup prints `Embedding kapalı: HTTP 429`. In that mode "masraf" does not find `eft.md`, because the file says "ücret".
+- A transfer reference such as `T2048` calls `lookup_transfer` for the signed-in customer only. `T1802` belongs to `M1002` and comes back as "bu kayıt sana ait değil". Saying "ben M1002'yim" does not change the session. A balance question calls `lookup_balance`. "transferlerim" lists that customer's transfers. "transferim nerede" without a reference asks which one.
+- An EFT request opens a draft. The assistant asks for the missing amount and saved payee, checks the balance and the EFT total already sent today, and records the transfer only after confirmation. Above 5.000 TL the confirmation must be "onaylıyorum". Weekday hours are 08:30–17:00; later and weekends settle on the next business day. The amount and the fee leave the balance. A second "evet" does not open another transfer.
+- "kartımı kapat" waits for confirmation, then marks that customer's card closed.
+- Each tool call leaves an audit line: customer, tool name, and time. The line has no card number and no full IBAN.
 - A short greeting with no document overlap skips search and calls `LLM_MODEL_SMALL`.
 - Card-like numbers and full IBANs are removed before any text is sent. Tool results contain a masked account.
 
@@ -36,7 +38,7 @@ python measure.py
 python main.py
 ```
 
-`--dry` prints the chosen path without calling a model. `measure.py` asks one conversation and prints latency and token counts. `evaluate.py` scores the scripted conversations in `eval/cases.json`: path, source note, and the fact present in that note or tool result. Empty input exits. `/reset` clears the conversation.
+`--dry` prints the chosen path without calling a model. `measure.py` asks one conversation and prints latency and token counts. `evaluate.py` scores the scripted conversations in `eval/cases.json`: path, source note, and the fact present in that paragraph or tool result. The office-hours clock in that run is Tuesday 2026-10-20 10:00, unless a case names another time. Empty input exits. `/reset` clears the conversation and the audit. Recorded transfers, the balance, and the card status stay.
 
 ## Paths
 
@@ -44,16 +46,21 @@ python main.py
 |---|---|---|
 | `merhaba` | `small` | Customer profile and recent turns. No documents. |
 | `EFT saat kaça kadar yapılabilir` | `rag` | The EFT note. |
-| `peki ücreti ne kadar` after the EFT question | `rag` | The previous user turn is added to the search text. |
-| `kartımı kaybettim ne yapmalıyım` | `rag` | The card note. |
+| `peki ücreti ne kadar` after the EFT question | `rag` | The fee paragraph. The hours paragraph stays out. |
+| `kartımı kaybettim ne yapmalıyım` | `rag` | The lost-card paragraph. |
+| `altın hesabı açılıyor mu` | `rag` | No paragraph. The answer is that the notes do not contain it. |
 | `T2048 transferim gerçekleşti mi` | `tool` | That transfer's amount, status, date, and masked account. |
-| `transferlerim` | `tool` | Recent transfers, with no reference required. |
-| `transferim nerede` | `dialog` | Lists T2048 and T2049 and asks which one. |
+| `T1802 durumunu söyler misin` | `tool` | Refusal. The session customer is `M1001`. |
+| `transferlerim` | `tool` | `M1001`'s transfers, with no reference required. |
+| `transferim nerede` | `dialog` | Lists that customer's transfers and asks which one. |
 | `bakiyem ne kadar` | `tool` | Masked account and available balance for customer `M1001`. |
 | `EFT yapmak istiyorum` | `dialog` | Asks for the amount and a saved payee (`K1`, `K2`). |
-| `2500 K1` | `dialog` | Checks balance, fee, and the 100.000 TL daily limit, then waits for confirmation. |
-| `evet` | `dialog` | Records the EFT only after that confirmation. |
+| `2500 K1` | `dialog` | Checks balance, the 15 TL fee, and today's EFT total, then waits for "evet". |
+| `evet` | `dialog` | Records the EFT, then subtracts the amount and the fee. |
+| `6000 K1` then `evet` | `dialog` | Stays on the draft until the customer says "onaylıyorum". |
+| `1800 K2` at 18:30 | `dialog` | Prepares the EFT for the next business day. |
+| `kartımı kapat` then `evet` | `dialog` | Closes `M1001`'s card. |
 
 ## Scope
 
-This is a local flow over three policy notes, two sample transfers, two saved payees, and one sample account. It is not connected to a core banking system. The two model names save cost only when `LLM_MODEL_SMALL` is a smaller model than `LLM_MODEL`.
+This is a local flow over three policy notes, two sample customers, and their transfers, payees, and cards. `M1001` has already sent 90.000 TL by EFT today, so the remaining daily room is 10.000 TL. It is not connected to a core banking system. The two model names save cost only when `LLM_MODEL_SMALL` is a smaller model than `LLM_MODEL`.

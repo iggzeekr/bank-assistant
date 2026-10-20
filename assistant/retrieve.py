@@ -34,6 +34,21 @@ def stem(word: str) -> str:
     return word
 
 
+def paragraphs(text: str) -> list[str]:
+    """Split a note on blank lines. A heading alone is not a chunk."""
+    chunks = []
+    for block in re.split(r"\n\s*\n", text.strip()):
+        lines = []
+        for line in block.splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            lines.append(stripped)
+        if lines:
+            chunks.append(" ".join(lines))
+    return chunks
+
+
 def tokenize(text: str) -> list[str]:
     words = []
     for match in TOKEN.findall(text):
@@ -63,9 +78,8 @@ class Index:
     def from_dir(cls, directory: Path, embedder=None) -> "Index":
         chunk_texts = []
         for path in sorted(directory.glob("*.md")):
-            text = path.read_text(encoding="utf-8").strip()
-            if text:
-                chunk_texts.append((path.name, text))
+            for paragraph in paragraphs(path.read_text(encoding="utf-8")):
+                chunk_texts.append((path.name, paragraph))
         doc_freq: dict[str, int] = {}
         tokenized = []
         for source, paragraph in chunk_texts:

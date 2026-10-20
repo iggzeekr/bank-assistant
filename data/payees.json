@@ -1,12 +1,20 @@
 [
   {
     "id": "K1",
+    "customer_id": "M1001",
     "label": "Kira",
     "account_masked": "TR** **** **** 4410"
   },
   {
     "id": "K2",
+    "customer_id": "M1001",
     "label": "Aidat",
     "account_masked": "TR** **** **** 2201"
+  },
+  {
+    "id": "K9",
+    "customer_id": "M1002",
+    "label": "Okul",
+    "account_masked": "TR** **** **** 9090"
   }
 ]

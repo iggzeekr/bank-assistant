@@ -6,6 +6,7 @@ that text must be in the note or tool result handed to the model.
 
 import argparse
 import json
+from datetime import datetime
 from pathlib import Path
 
 from main import build
@@ -21,8 +22,14 @@ def load_cases(path: Path = CASES) -> list[dict]:
 def score(cases: list[dict], live: bool = False) -> list[dict]:
     assistant = build(live=live)
     results = []
+    office_hours = lambda: datetime(2026, 10, 20, 10, 0)
     for case in cases:
         assistant.reset()
+        stamp = case.get("clock")
+        if stamp:
+            assistant.clock = lambda stamp=stamp: datetime.fromisoformat(stamp)
+        else:
+            assistant.clock = office_hours
         for turn in case["turns"]:
             answer = assistant.ask(turn["user"], live=live)
             seen = answer.text if live else answer.evidence

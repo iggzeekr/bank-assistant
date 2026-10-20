@@ -8,7 +8,7 @@ from assistant.llm import from_env
 from assistant.memory import Memory
 from assistant.pipeline import Assistant
 from assistant.retrieve import Index
-from assistant.tools import load_accounts, load_payees, load_transfers
+from assistant.tools import load_accounts, load_cards, load_payees, load_transfers
 
 ROOT = Path(__file__).resolve().parent
 
@@ -31,12 +31,14 @@ def build(live: bool) -> Assistant:
     transfers = load_transfers(ROOT / "data" / "transfers.json")
     accounts = load_accounts(ROOT / "data" / "accounts.json")
     payees = load_payees(ROOT / "data" / "payees.json")
+    cards = load_cards(ROOT / "data" / "cards.json")
     llm = from_env() if live else None
     return Assistant(
         index=index,
         transfers=transfers,
         accounts=accounts,
         payees=payees,
+        cards=cards,
         memory=Memory(profile),
         llm=llm,
         large_model=os.environ.get("LLM_MODEL", "gpt-4o-mini"),
@@ -51,6 +53,8 @@ def print_answer(result) -> None:
         f" | kaynak: {sources} | token: {result.prompt_tokens}+{result.completion_tokens}]"
     )
     print(result.text)
+    if result.audit:
+        print(f"iz: {result.audit}")
     print()
 
 

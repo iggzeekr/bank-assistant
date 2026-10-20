@@ -3,5 +3,10 @@
     "account_masked": "TR** **** **** 1001",
     "available_tl": 12450.75,
     "currency": "TL"
+  },
+  "M1002": {
+    "account_masked": "TR** **** **** 1002",
+    "available_tl": 800.0,
+    "currency": "TL"
   }
 }

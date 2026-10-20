@@ -1,6 +1,7 @@
 [
   {
     "id": "T2048",
+    "customer_id": "M1001",
     "type": "EFT",
     "amount_tl": 2500,
     "status": "gerçekleşti",
@@ -9,10 +10,29 @@
   },
   {
     "id": "T2049",
+    "customer_id": "M1001",
     "type": "havale",
     "amount_tl": 400,
     "status": "beklemede",
     "date": "2026-10-16",
     "recipient_account_masked": "TR** **** **** 1190"
+  },
+  {
+    "id": "T1901",
+    "customer_id": "M1001",
+    "type": "EFT",
+    "amount_tl": 90000,
+    "status": "gerçekleşti",
+    "date": "today",
+    "recipient_account_masked": "TR** **** **** 7731"
+  },
+  {
+    "id": "T1802",
+    "customer_id": "M1002",
+    "type": "EFT",
+    "amount_tl": 75,
+    "status": "beklemede",
+    "date": "2026-10-19",
+    "recipient_account_masked": "TR** **** **** 1802"
   }
 ]
